@@ -4,10 +4,10 @@ from base import BaseModel
 
 
 class CommNet(BaseModel):
-    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.0005, batch_size=64,
+    def __init__(self, num_lever=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.0005, batch_size=256,
                  episodes=500):
 
-        super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
+        super().__init__(num_lever, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
 
         self.base_line = tf.placeholder(tf.float32, shape=(None, 1))
         self.base_reward = tf.placeholder(tf.float32, shape=(None, 1))
@@ -30,17 +30,16 @@ class CommNet(BaseModel):
 
     def _create_network(self):
         # look-up table
-
         input_one_hot = tf.one_hot(self.input, self.num_agents)
         # CommNet
-        h0 = tf.einsum("ijk,kl->ijl", input_one_hot, self.look_up)
-        h1 = self._create_cell("step_first", self.c_meta, h0, h0)
-        c1 = self._mean(h1)
-        h2 = self._create_cell("step_second", c1, h1, h0)
-        out = tf.einsum("ijk,kl->ijl", h2, self.dense_weight)
+        self.h0 = tf.einsum("ijk,kl->ijl", input_one_hot, self.look_up)
+        self.h1 = self._create_cell("step_first", self.c_meta, self.h0, self.h0)
+        self.c1 = self._mean(self.h1)
+        self.h2 = self._create_cell("step_second", self.c1, self.h1, self.h0)
+        self.pi = tf.einsum("ijk,kl->ijl", self.h2, self.dense_weight)
 
         # soft-max
-        soft = tf.nn.softmax(out)
+        soft = tf.nn.softmax(self.pi)
 
         return soft
 
@@ -49,13 +48,13 @@ class CommNet(BaseModel):
         # sample actions
         self.actions = tf.multinomial(tf.log(reshape_policy + self.bias), num_samples=1)
         one_hot = tf.one_hot(self.actions, depth=self.n_actions)
-        self.one_hot = tf.reshape(one_hot, shape=(-1, self.num_leaver, self.n_actions))
+        self.one_hot = tf.reshape(one_hot, shape=(-1, self.num_lever, self.n_actions))
 
     def _get_reward(self):
         self._sample_action()
         distinct_num = tf.reduce_sum(tf.cast(tf.reduce_sum(self.one_hot, axis=1) > 0, tf.float32), axis=1,
                                      keep_dims=True)
-        return distinct_num / self.num_leaver
+        return distinct_num / self.num_lever
 
     def _get_loss(self):
         # advantage: n, 1, 1
@@ -72,7 +71,7 @@ class CommNet(BaseModel):
         reward, gun, policy = self.sess.run([self.reward, self.dense_weight, self.policy], feed_dict={
             self.input: ids,
             self.mask: self.mask_data,
-            self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len))
+            self.c_meta: np.zeros((self.batch_size, self.num_lever, self.vector_len))
         })
 
         return reward
@@ -82,7 +81,7 @@ class CommNet(BaseModel):
         _, loss, reward, policy = self.sess.run([self.train_op, self.loss, self.reward, self.policy], feed_dict={
             self.input: ids,
             self.mask: self.mask_data,
-            self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len)),
+            self.c_meta: np.zeros((self.batch_size, self.num_lever, self.vector_len)),
             self.base_line: base_line,
             self.base_reward: base_reward
         })
@@ -98,9 +97,9 @@ class CommNet(BaseModel):
 
 
 class BaseLine(BaseModel):
-    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.0005, batch_size=64,
+    def __init__(self, num_lever=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.0005, batch_size=64,
                  episodes=500):
-        super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
+        super().__init__(num_lever, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
 
         self.n_actions = 1
         self.eta = 0.003
@@ -114,7 +113,7 @@ class BaseLine(BaseModel):
             self.baseline = self._create_network()  # n * 5 * n_actions
             # cross entropy: n * 5 * 1
             self.loss = self._get_loss()
-            self.train_op = tf.train.RMSPropOptimizer(self.alpha).minimize(self.loss)
+            self.train_op = tf.train.RMSPropOptimizer(self.lr).minimize(self.loss)
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
 
@@ -148,7 +147,7 @@ class BaseLine(BaseModel):
         return self.sess.run(self.baseline, feed_dict={
             self.input: ids,
             self.mask: self.mask_data,
-            self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len))
+            self.c_meta: np.zeros((self.batch_size, self.num_lever, self.vector_len))
         })
 
     def train(self, ids, base_line=None, base_reward=None, **kwargs):
@@ -156,7 +155,7 @@ class BaseLine(BaseModel):
         _, loss, base = self.sess.run([self.train_op, self.loss, self.baseline], feed_dict={
             self.input: ids,
             self.mask: self.mask_data,
-            self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len)),
+            self.c_meta: np.zeros((self.batch_size, self.num_lever, self.vector_len)),
             self.reward: base_reward
         })
 

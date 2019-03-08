@@ -3,26 +3,28 @@ import numpy as np
 
 
 class BaseModel:
-    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.003,
+    def __init__(self, num_lever=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.003,
                  batch_size=64, episodes=500):
         # ===== parameters =====
-        self.num_leaver = num_leaver
+        self.num_lever = num_lever
         self.num_agents = num_agents
         self.alpha = learning_rate
         self.vector_len = vector_len
         self.num_units = num_units
         self.batch_size = batch_size
-        self.n_actions = num_leaver
+        self.n_actions = num_lever
         self.episodes = episodes
+
+        self.lr = tf.placeholder(tf.float32, [], name='lr')
 
         # ===== pre-define data: look-up table, id =====
         self.ids = None
-        self.mask_data = np.ones(shape=(self.num_leaver, self.num_leaver), dtype=np.float32)
-        self.mask_data[np.arange(self.num_leaver), np.arange(self.num_leaver)] = 0.0
+        self.mask_data = np.ones(shape=(self.num_lever, self.num_lever), dtype=np.float32)
+        self.mask_data[np.arange(self.num_lever), np.arange(self.num_lever)] = 0.0
 
         # ===== network define =====
-        self.input = tf.placeholder(tf.int32, shape=(None, self.num_leaver))
-        self.c_meta = tf.placeholder(tf.float32, shape=(None, self.num_leaver, self.vector_len))
+        self.input = tf.placeholder(tf.int32, shape=(None, self.num_lever))
+        self.c_meta = tf.placeholder(tf.float32, shape=(None, self.num_lever, self.vector_len))
 
     def _create_cell(self, name, c, h, h_meta):
         with tf.variable_scope(name):
@@ -42,9 +44,9 @@ class BaseModel:
         return tf.nn.relu(dense)
 
     def _mean(self, h):
-        amount = self.num_leaver - 1
+        amount = self.num_lever - 1
 
-        self.mask = tf.placeholder(tf.float32, shape=(self.num_leaver, self.num_leaver))
+        self.mask = tf.placeholder(tf.float32, shape=(self.num_lever, self.num_lever))
 
         c = tf.einsum("ij,kjl->kil", self.mask, h) / amount
 

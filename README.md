@@ -15,10 +15,10 @@ demonstrating the ability of the agents to learn to communicate amongst themselv
 
 *Tasks*
 
-1. Leaver Pulling game
+1. lever Pulling game
 2. Traffic Junction
 
-**Plot of Loss (leaver pulling game)**
+**Plot of Loss (lever pulling game)**
 
 <img src="./assets/loss.png" width="70%" />
 

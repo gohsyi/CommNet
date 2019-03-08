@@ -1,6 +1,6 @@
 import numpy as np
 import logging as log
-from leaver_game import BaseLine, CommNet
+from lever_game import BaseLine, CommNet
 
 
 N_AGENTS = 50
@@ -10,7 +10,7 @@ LEVER = 5
 
 
 # set logger
-log.basicConfig(level=log.INFO, filename="leaver_train.log")
+log.basicConfig(level=log.INFO, filename="lever_train_test.log")
 console = log.StreamHandler()
 console.setLevel(log.INFO)
 log.getLogger("").addHandler(console)
@@ -32,5 +32,5 @@ def train(episode):
 
 
 if __name__ == "__main__":
-    train(100000)
+    train(10000000)
 
